@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+python-multipart
+pydantic
+sentence-transformers
+transformers
+faiss-cpu
+pdfplumber
+pillow
+pytesseract      # optional (OCR)
+langchain        # optional helper
