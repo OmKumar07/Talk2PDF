@@ -1,6 +1,7 @@
 # Talk2PDF Environment Configuration Guide
 
 ## Overview
+
 This guide explains how to configure Talk2PDF backend for different deployment scenarios using environment files and manual host settings.
 
 ## Environment Files
@@ -14,6 +15,7 @@ This guide explains how to configure Talk2PDF backend for different deployment s
 ### Using the Configuration Loader
 
 Load a specific environment:
+
 ```bash
 python config_loader.py dev          # Development
 python config_loader.py production   # Production
@@ -21,6 +23,7 @@ python config_loader.py manual       # Manual/Custom
 ```
 
 View available configurations:
+
 ```bash
 python config_loader.py help
 ```
@@ -38,6 +41,7 @@ uvicorn app:app --reload --host 0.0.0.0 --port 8000
 ```
 
 **Environment Variables:**
+
 - `ENVIRONMENT=development`
 - `HOST=0.0.0.0`
 - `PORT=8000`
@@ -47,6 +51,7 @@ uvicorn app:app --reload --host 0.0.0.0 --port 8000
 ### 2. Render.com Deployment
 
 **Step 1: Set Environment Variables in Render Dashboard**
+
 ```
 GEMINI_API_KEY=your_actual_api_key
 ENVIRONMENT=production
@@ -54,11 +59,13 @@ FRONTEND_URL=https://your-netlify-url.netlify.app
 ```
 
 **Step 2: Deploy**
+
 - Render will automatically use `render.yaml` configuration
 - Build command loads production environment
 - Server starts on PORT provided by Render
 
 **Environment Variables:**
+
 - `ENVIRONMENT=production`
 - `HOST=0.0.0.0`
 - `PORT=10000` (set by Render)
@@ -79,6 +86,7 @@ uvicorn app:app --host 0.0.0.0 --port 8080 --workers 4
 ```
 
 **Customizable Settings:**
+
 ```env
 # Server Configuration
 HOST=0.0.0.0
@@ -104,48 +112,55 @@ RATE_LIMIT_REQUESTS_PER_MINUTE=60
 ## Environment Variables Reference
 
 ### Core Configuration
-| Variable | Description | Default | Required |
-|----------|-------------|---------|----------|
-| `ENVIRONMENT` | deployment environment | `development` | No |
-| `GEMINI_API_KEY` | Google Gemini API key | - | Yes |
-| `FRONTEND_URL` | Frontend application URL | `http://localhost:5173` | No |
+
+| Variable         | Description              | Default                 | Required |
+| ---------------- | ------------------------ | ----------------------- | -------- |
+| `ENVIRONMENT`    | deployment environment   | `development`           | No       |
+| `GEMINI_API_KEY` | Google Gemini API key    | -                       | Yes      |
+| `FRONTEND_URL`   | Frontend application URL | `http://localhost:5173` | No       |
 
 ### Server Configuration
-| Variable | Description | Default | Required |
-|----------|-------------|---------|----------|
-| `HOST` | Server bind address | `0.0.0.0` | No |
-| `PORT` | Server port | `8000` | No |
-| `DEBUG` | Enable debug mode | `true` | No |
-| `DOCS_ENABLED` | Enable API docs | `true` | No |
+
+| Variable       | Description         | Default   | Required |
+| -------------- | ------------------- | --------- | -------- |
+| `HOST`         | Server bind address | `0.0.0.0` | No       |
+| `PORT`         | Server port         | `8000`    | No       |
+| `DEBUG`        | Enable debug mode   | `true`    | No       |
+| `DOCS_ENABLED` | Enable API docs     | `true`    | No       |
 
 ### CORS Configuration
-| Variable | Description | Default | Required |
-|----------|-------------|---------|----------|
-| `ALLOWED_ORIGINS` | Custom CORS origins (comma-separated) | - | No |
+
+| Variable          | Description                           | Default | Required |
+| ----------------- | ------------------------------------- | ------- | -------- |
+| `ALLOWED_ORIGINS` | Custom CORS origins (comma-separated) | -       | No       |
 
 ### File Upload
-| Variable | Description | Default | Required |
-|----------|-------------|---------|----------|
-| `MAX_FILE_SIZE` | Maximum file size in bytes | `52428800` (50MB) | No |
+
+| Variable        | Description                | Default           | Required |
+| --------------- | -------------------------- | ----------------- | -------- |
+| `MAX_FILE_SIZE` | Maximum file size in bytes | `52428800` (50MB) | No       |
 
 ### Logging
-| Variable | Description | Default | Required |
-|----------|-------------|---------|----------|
-| `LOG_LEVEL` | Logging level | `INFO` | No |
-| `LOG_FORMAT` | Log format | `text` | No |
+
+| Variable     | Description   | Default | Required |
+| ------------ | ------------- | ------- | -------- |
+| `LOG_LEVEL`  | Logging level | `INFO`  | No       |
+| `LOG_FORMAT` | Log format    | `text`  | No       |
 
 ### Security (Manual Deployment)
-| Variable | Description | Default | Required |
-|----------|-------------|---------|----------|
-| `SSL_ENABLED` | Enable HTTPS | `false` | No |
-| `SSL_CERT_PATH` | SSL certificate path | - | No |
-| `SSL_KEY_PATH` | SSL private key path | - | No |
-| `RATE_LIMIT_ENABLED` | Enable rate limiting | `false` | No |
-| `RATE_LIMIT_REQUESTS_PER_MINUTE` | Rate limit threshold | `60` | No |
+
+| Variable                         | Description          | Default | Required |
+| -------------------------------- | -------------------- | ------- | -------- |
+| `SSL_ENABLED`                    | Enable HTTPS         | `false` | No       |
+| `SSL_CERT_PATH`                  | SSL certificate path | -       | No       |
+| `SSL_KEY_PATH`                   | SSL private key path | -       | No       |
+| `RATE_LIMIT_ENABLED`             | Enable rate limiting | `false` | No       |
+| `RATE_LIMIT_REQUESTS_PER_MINUTE` | Rate limit threshold | `60`    | No       |
 
 ## Example Configurations
 
 ### Development (Local)
+
 ```env
 ENVIRONMENT=development
 GEMINI_API_KEY=your_dev_api_key
@@ -157,6 +172,7 @@ DOCS_ENABLED=true
 ```
 
 ### Production (Render)
+
 ```env
 ENVIRONMENT=production
 GEMINI_API_KEY=your_prod_api_key
@@ -169,6 +185,7 @@ MAX_FILE_SIZE=52428800
 ```
 
 ### Custom VPS
+
 ```env
 ENVIRONMENT=production
 GEMINI_API_KEY=your_prod_api_key
@@ -189,14 +206,17 @@ ALLOWED_ORIGINS=https://talk2pdf.yourdomain.com,https://www.yourdomain.com
 ### Common Issues
 
 1. **CORS Errors**
+
    - Check `FRONTEND_URL` matches your frontend domain
    - Add custom domains to `ALLOWED_ORIGINS`
 
 2. **File Upload Fails**
+
    - Check `MAX_FILE_SIZE` setting
    - Verify server has enough disk space
 
 3. **API Key Errors**
+
    - Ensure `GEMINI_API_KEY` is set correctly
    - Verify API key has proper permissions
 
@@ -207,6 +227,7 @@ ALLOWED_ORIGINS=https://talk2pdf.yourdomain.com,https://www.yourdomain.com
 ### Health Checks
 
 Test your deployment:
+
 ```bash
 # Check health endpoint
 curl https://your-backend-url/health
@@ -229,16 +250,19 @@ curl https://your-backend-url/docs
 ### From Basic Setup to Environment Configuration
 
 1. **Backup existing `.env`**:
+
    ```bash
    cp .env .env.backup
    ```
 
 2. **Choose environment type**:
+
    ```bash
    python config_loader.py production  # or dev/manual
    ```
 
 3. **Update API key**:
+
    ```bash
    # Edit the loaded .env file
    nano .env

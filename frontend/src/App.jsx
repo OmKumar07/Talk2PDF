@@ -603,12 +603,14 @@ function App() {
           <div className="processing-subtitle">
             Analyzing content and creating searchable chunks...
           </div>
-          <div style={{ 
-            marginTop: '1rem', 
-            fontSize: '0.8rem', 
-            color: '#64748b',
-            fontStyle: 'italic'
-          }}>
+          <div
+            style={{
+              marginTop: "1rem",
+              fontSize: "0.8rem",
+              color: "#64748b",
+              fontStyle: "italic",
+            }}
+          >
             This may take 30-60 seconds for large documents...
           </div>
         </div>
@@ -644,15 +646,23 @@ function App() {
                           <div className="sources-label">📖 Sources:</div>
                           <div className="sources-list">
                             {message.sources.map((source, idx) => (
-                              <span 
-                                key={idx} 
+                              <span
+                                key={idx}
                                 className="source-tag"
-                                title={typeof source === 'object' && source.text 
-                                  ? `"${source.text.slice(0, 100)}..."` 
-                                  : undefined}
+                                title={
+                                  typeof source === "object" && source.text
+                                    ? `"${source.text.slice(0, 100)}..."`
+                                    : undefined
+                                }
                               >
-                                {typeof source === 'object' 
-                                  ? `Page ${source.page}${source.relevance ? ` (${(source.relevance * 100).toFixed(0)}%)` : ''}` 
+                                {typeof source === "object"
+                                  ? `Page ${source.page}${
+                                      source.relevance
+                                        ? ` (${(source.relevance * 100).toFixed(
+                                            0
+                                          )}%)`
+                                        : ""
+                                    }`
                                   : `Page ${source}`}
                               </span>
                             ))}
