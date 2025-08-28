@@ -6,22 +6,42 @@ import asyncio
 from ingest import ingest_document
 from query import answer_query, answer_complex_query
 
-app = FastAPI()
+# Production configuration
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+
+app = FastAPI(
+    title="Talk2PDF API",
+    description="AI-powered PDF document chat interface",
+    version="1.0.0",
+    docs_url="/docs" if ENVIRONMENT == "development" else None,
+    redoc_url="/redoc" if ENVIRONMENT == "development" else None
+)
 
 # Store processing status
 processing_status = {}
 
-# Enable CORS for frontend
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
+# Production CORS configuration
+if ENVIRONMENT == "production":
+    allowed_origins = [
+        FRONTEND_URL,
+        "https://*.netlify.app",
+        "https://*.netlify.com"
+    ]
+else:
+    allowed_origins = [
         "http://localhost:5173", 
         "http://localhost:5174", 
         "http://127.0.0.1:5173", 
         "http://127.0.0.1:5174",
-        "http://localhost:3000",  # Additional common ports
+        "http://localhost:3000",
         "http://127.0.0.1:3000"
-    ],  # React/Vite frontend
+    ]
+
+# Enable CORS for frontend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
@@ -32,11 +52,20 @@ app.add_middleware(
 # -------------------------
 @app.get("/")
 def health_check():
-    return {"message": "Talk2PDF Backend is running!", "status": "healthy"}
+    return {
+        "message": "Talk2PDF Backend is running!", 
+        "status": "healthy",
+        "environment": ENVIRONMENT,
+        "version": "1.0.0"
+    }
 
 @app.get("/health")
 def health():
-    return {"status": "ok"}
+    return {
+        "status": "ok",
+        "environment": ENVIRONMENT,
+        "processing_queue": len(processing_status)
+    }
 
 # -------------------------
 # Background Processing Function

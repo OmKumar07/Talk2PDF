@@ -9,6 +9,7 @@ Talk2PDF is a modern, full-stack application that allows you to upload PDF docum
 ## ✨ Features
 
 ### 🎨 **Modern UI/UX**
+
 - **Professional Chat Interface**: Sleek chat-style conversations with gradient backgrounds
 - **Drag & Drop Upload**: Intuitive file upload with visual feedback
 - **Real-time Status**: Live backend connection monitoring and processing progress
@@ -17,6 +18,7 @@ Talk2PDF is a modern, full-stack application that allows you to upload PDF docum
 - **Smooth Animations**: Polished transitions and loading states
 
 ### ⚡ **Performance & Reliability**
+
 - **Asynchronous Processing**: Background document processing prevents timeouts
 - **Batch Processing**: Memory-efficient chunk processing for large documents
 - **Real-time Progress**: Live status updates during document processing
@@ -24,6 +26,7 @@ Talk2PDF is a modern, full-stack application that allows you to upload PDF docum
 - **Fast Upload**: Quick file uploads with immediate response
 
 ### 🧠 **Advanced AI Features**
+
 - **Multi-stage Retrieval**: Enhanced accuracy through multiple query strategies
 - **Smart Chunking**: Sentence-aware text segmentation for better context
 - **Question Analysis**: Intent recognition for optimized search strategies
@@ -32,6 +35,7 @@ Talk2PDF is a modern, full-stack application that allows you to upload PDF docum
 - **Context Building**: Intelligent context assembly for comprehensive answers
 
 ### 🛠️ **Technical Excellence**
+
 - **FastAPI Backend**: High-performance Python API with automatic documentation
 - **Vector Search**: FAISS-powered similarity search for accurate retrieval
 - **Transformer Models**: State-of-the-art NLP with SentenceTransformers and DeBERTa
@@ -41,18 +45,30 @@ Talk2PDF is a modern, full-stack application that allows you to upload PDF docum
 
 ## 🚀 Quick Start
 
+### 🌐 Production Deployment
+
+**Ready for Production!** This application is configured for deployment on:
+
+- **Backend**: Render.com (with auto-scaling and health monitoring)
+- **Frontend**: Netlify (with CDN and auto-deployment)
+
+📋 **[View Complete Deployment Guide →](./DEPLOYMENT.md)**
+
 ### Prerequisites
+
 - **Python 3.12+**
 - **Node.js 18+**
 - **Git**
 
 ### 1. Clone the Repository
+
 ```bash
 git clone https://github.com/OmKumar07/Talk2PDF.git
 cd Talk2PDF
 ```
 
 ### 2. Backend Setup
+
 ```bash
 # Navigate to backend
 cd backend
@@ -74,6 +90,7 @@ uvicorn app:app --reload --host 0.0.0.0 --port 8000
 ```
 
 ### 3. Frontend Setup
+
 ```bash
 # Open new terminal and navigate to frontend
 cd frontend
@@ -86,6 +103,7 @@ npm run dev
 ```
 
 ### 4. Access the Application
+
 - **Frontend**: http://localhost:5173
 - **Backend API**: http://localhost:8000
 - **API Documentation**: http://localhost:8000/docs
@@ -100,6 +118,7 @@ npm run dev
 ## 🏗️ Architecture
 
 ### Frontend (React + Vite)
+
 ```
 frontend/
 ├── src/
@@ -112,6 +131,7 @@ frontend/
 ```
 
 ### Backend (FastAPI + Python)
+
 ```
 backend/
 ├── app.py               # FastAPI application with endpoints
@@ -124,6 +144,7 @@ backend/
 ## 🔧 API Endpoints
 
 ### 📤 **Upload Document**
+
 ```http
 POST /upload
 Content-Type: multipart/form-data
@@ -132,6 +153,7 @@ Response: {"doc_id": "uuid", "status": "uploaded", "message": "Processing..."}
 ```
 
 ### 📊 **Check Processing Status**
+
 ```http
 GET /status/{doc_id}
 
@@ -139,6 +161,7 @@ Response: {"status": "completed", "progress": 100, "num_chunks": 355}
 ```
 
 ### 💬 **Ask Question**
+
 ```http
 POST /ask
 Content-Type: application/json
@@ -156,6 +179,7 @@ Response: {
 ```
 
 ### ❤️ **Health Check**
+
 ```http
 GET /health
 
@@ -165,6 +189,7 @@ Response: {"status": "ok"}
 ## 🎯 Advanced Features
 
 ### **Question Processing Pipeline**
+
 1. **Intent Analysis**: Determine question type and complexity
 2. **Query Variants**: Generate multiple search strategies
 3. **Vector Search**: Find relevant document chunks using FAISS
@@ -173,6 +198,7 @@ Response: {"status": "ok"}
 6. **Confidence Scoring**: Evaluate answer reliability
 
 ### **Document Processing Pipeline**
+
 1. **PDF Extraction**: Extract text while preserving structure
 2. **Smart Chunking**: Sentence-aware segmentation for optimal context
 3. **Batch Embedding**: Memory-efficient vector generation
@@ -182,6 +208,7 @@ Response: {"status": "ok"}
 ## 🔬 Technical Stack
 
 ### **Frontend Technologies**
+
 - **React 18**: Modern component-based UI framework
 - **Vite**: Lightning-fast build tool and dev server
 - **Axios**: HTTP client for API communication
@@ -189,6 +216,7 @@ Response: {"status": "ok"}
 - **ES6+**: Modern JavaScript features
 
 ### **Backend Technologies**
+
 - **FastAPI**: High-performance Python web framework
 - **Uvicorn**: ASGI server for production deployment
 - **SentenceTransformers**: State-of-the-art embedding models
@@ -198,6 +226,7 @@ Response: {"status": "ok"}
 - **NumPy**: Numerical computing for embeddings
 
 ### **AI/ML Models**
+
 - **all-MiniLM-L6-v2**: Sentence embedding model (384 dimensions)
 - **DeBERTa-v3-large**: Question answering model
 - **Custom Query Processing**: Multi-stage retrieval system
