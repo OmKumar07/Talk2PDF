@@ -10,11 +10,22 @@ app = FastAPI()
 # Enable CORS for frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:5174"],  # React/Vite frontend
+    allow_origins=["http://localhost:5173", "http://localhost:5174", "http://127.0.0.1:5173", "http://127.0.0.1:5174"],  # React/Vite frontend
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# -------------------------
+# Health Check Endpoint
+# -------------------------
+@app.get("/")
+def health_check():
+    return {"message": "Talk2PDF Backend is running!", "status": "healthy"}
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
 
 # -------------------------
 # Upload PDF Endpoint

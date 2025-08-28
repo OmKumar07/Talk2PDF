@@ -24,10 +24,77 @@ def extract_pages(pdf_path):
     with pdfplumber.open(pdf_path) as pdf:
         for i, p in enumerate(pdf.pages, start=1):
             text = p.extract_text() or ""
-            pages.append({"page": i, "text": text})
+            
+            # Clean and improve text formatting
+            text = clean_text(text)
+            
+            if text.strip():  # Only add pages with content
+                pages.append({"page": i, "text": text})
     return pages
 
-def chunk_text(text, chunk_size=1000, overlap=200):
+def clean_text(text):
+    """
+    Clean and normalize extracted text
+    """
+    if not text:
+        return ""
+    
+    # Replace multiple whitespaces with single space
+    import re
+    text = re.sub(r'\s+', ' ', text)
+    
+    # Fix common PDF extraction issues
+    text = text.replace('•', '- ')  # Bullet points
+    text = text.replace('\x00', '')  # Remove null characters
+    text = text.replace('\uf0b7', '- ')  # Another bullet point format
+    
+    # Remove excessive newlines but preserve paragraph breaks
+    text = re.sub(r'\n\s*\n', '\n\n', text)
+    text = re.sub(r'\n(?!\n)', ' ', text)  # Convert single newlines to spaces
+    
+    # Ensure proper sentence spacing
+    text = re.sub(r'\.(?=[A-Z])', '. ', text)
+    
+    return text.strip()
+
+def chunk_text(text, chunk_size=800, overlap=150):
+    """
+    Improved chunking that tries to preserve sentence boundaries
+    """
+    if not text.strip():
+        return []
+    
+    # Split into sentences first
+    sentences = text.replace('\n', ' ').split('.')
+    sentences = [s.strip() + '.' for s in sentences if s.strip()]
+    
+    chunks = []
+    current_chunk = ""
+    
+    for sentence in sentences:
+        # If adding this sentence would exceed chunk_size, start a new chunk
+        if len(current_chunk) + len(sentence) > chunk_size and current_chunk:
+            chunks.append(current_chunk.strip())
+            # Start new chunk with overlap from previous chunk
+            overlap_words = current_chunk.split()[-20:]  # Take last 20 words for overlap
+            current_chunk = " ".join(overlap_words) + " " + sentence
+        else:
+            current_chunk += " " + sentence if current_chunk else sentence
+    
+    # Add the last chunk
+    if current_chunk.strip():
+        chunks.append(current_chunk.strip())
+    
+    # Fallback to basic chunking if sentence-based chunking fails
+    if not chunks and text.strip():
+        chunks = basic_chunk_text(text, chunk_size, overlap)
+    
+    return chunks
+
+def basic_chunk_text(text, chunk_size=800, overlap=150):
+    """
+    Basic chunking as fallback
+    """
     chunks = []
     start = 0
     while start < len(text):
