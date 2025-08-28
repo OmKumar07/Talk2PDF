@@ -114,7 +114,31 @@ def ingest_document(doc_id, pdf_path, out_dir=STORAGE_DIR):
             chunks.append({"page": p["page"], "text": c})
 
     texts = [c["text"] for c in chunks if c["text"].strip()]
-    embeddings = embedder.encode(texts, convert_to_numpy=True, show_progress_bar=True)
+    print(f"Processing {len(texts)} text chunks...")
+    
+    # Process embeddings in smaller batches to prevent memory issues
+    batch_size = 50  # Process 50 chunks at a time
+    all_embeddings = []
+    
+    for i in range(0, len(texts), batch_size):
+        batch_texts = texts[i:i + batch_size]
+        print(f"Processing batch {i//batch_size + 1}/{(len(texts) + batch_size - 1)//batch_size}")
+        
+        try:
+            batch_embeddings = embedder.encode(
+                batch_texts, 
+                convert_to_numpy=True, 
+                show_progress_bar=False,  # Disable progress bar for batches
+                batch_size=32  # Smaller internal batch size
+            )
+            all_embeddings.append(batch_embeddings)
+        except Exception as e:
+            print(f"Error processing batch {i//batch_size + 1}: {e}")
+            raise e
+    
+    # Combine all embeddings
+    embeddings = np.vstack(all_embeddings)
+    print(f"Generated embeddings shape: {embeddings.shape}")
 
     # normalize for cosine similarity with IndexFlatIP
     norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
@@ -132,6 +156,8 @@ def ingest_document(doc_id, pdf_path, out_dir=STORAGE_DIR):
     with open(meta_path, "w", encoding="utf-8") as f:
         json.dump(chunks, f, ensure_ascii=False, indent=2)
 
+    print(f"Ingestion completed: {len(chunks)} chunks processed")
+    
     return {
         "doc_id": doc_id,
         "pdf_path": pdf_path,

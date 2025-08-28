@@ -1,10 +1,16 @@
 import { useState, useRef, useEffect } from "react";
-import { uploadPDF, askQuestion } from "./api";
+import {
+  uploadPDF,
+  askQuestion,
+  testConnection,
+  checkProcessingStatus,
+} from "./api";
 import "./App.css";
 
 function App() {
   const [file, setFile] = useState(null);
   const [docId, setDocId] = useState(null);
+  const [processingStatus, setProcessingStatus] = useState(null);
   const [messages, setMessages] = useState([
     {
       type: "system",
@@ -24,6 +30,7 @@ function App() {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   const [dragOver, setDragOver] = useState(false);
+  const [backendConnected, setBackendConnected] = useState(false);
 
   const fileInputRef = useRef(null);
   const messagesEndRef = useRef(null);
@@ -37,7 +44,25 @@ function App() {
     "Who are the authors or main contributors?",
   ];
 
-  // Auto-scroll to bottom when new messages are added
+  // Test backend connection on mount
+  useEffect(() => {
+    const checkBackendConnection = async () => {
+      try {
+        const result = await testConnection();
+        setBackendConnected(result.connected);
+        if (!result.connected) {
+          console.warn("Backend connection failed:", result.error);
+        } else {
+          console.log("Backend connection successful!");
+        }
+      } catch (error) {
+        console.error("Connection test error:", error);
+        setBackendConnected(false);
+      }
+    };
+
+    checkBackendConnection();
+  }, []); // Auto-scroll to bottom when new messages are added
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
@@ -85,12 +110,46 @@ function App() {
       setError("");
       setUploading(true);
       const resp = await uploadPDF(file);
+
       if (resp && resp.doc_id) {
         setDocId(resp.doc_id);
+        setProcessingStatus({ status: "uploaded", progress: 0 });
+
         setMessages([
           {
             type: "system",
-            content: `✅ Successfully uploaded "${file.name}". You can now ask questions about the document!`,
+            content: `✅ Successfully uploaded "${file.name}". Processing document...`,
+            timestamp: new Date(),
+          },
+        ]);
+
+        // Start polling for processing status
+        pollProcessingStatus(resp.doc_id);
+      } else {
+        setError("Upload failed: no document ID returned.");
+      }
+    } catch (err) {
+      console.error("Upload failed:", err);
+      setError("Upload failed. Please check if the server is running.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  // Poll processing status
+  const pollProcessingStatus = async (docId) => {
+    try {
+      const status = await checkProcessingStatus(docId);
+      setProcessingStatus(status);
+
+      if (status.status === "completed") {
+        setMessages((prev) => [
+          ...prev,
+          {
+            type: "system",
+            content: `🎉 Document processed successfully! Found ${
+              status.num_chunks || 0
+            } text chunks. You can now ask questions!`,
             timestamp: new Date(),
           },
           {
@@ -103,14 +162,19 @@ function App() {
             timestamp: new Date(),
           },
         ]);
+      } else if (status.status === "failed") {
+        setError(
+          `Document processing failed: ${status.error || "Unknown error"}`
+        );
+        setProcessingStatus(null);
+        setDocId(null);
       } else {
-        setError("Upload failed: no document ID returned.");
+        // Continue polling if still processing
+        setTimeout(() => pollProcessingStatus(docId), 2000);
       }
     } catch (err) {
-      console.error("Upload failed:", err);
-      setError("Upload failed. Please check if the server is running.");
-    } finally {
-      setUploading(false);
+      console.error("Status check failed:", err);
+      setError("Failed to check processing status.");
     }
   };
 
@@ -141,7 +205,15 @@ function App() {
 
     try {
       setLoading(true);
+      console.log("Sending question to backend:", { docId, question });
+
       const resp = await askQuestion(docId, question);
+      console.log("Received response:", resp);
+
+      // Validate response structure
+      if (!resp || typeof resp !== "object") {
+        throw new Error("Invalid response format from server");
+      }
 
       // Add assistant response
       const assistantMessage = {
@@ -149,19 +221,40 @@ function App() {
         content:
           resp.answer || "Sorry, I couldn't find an answer to your question.",
         sources: resp.sources || [],
-        confidence: resp.score,
+        confidence: resp.score || 0,
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, assistantMessage]);
     } catch (err) {
       console.error("Ask failed:", err);
+
+      // More detailed error handling
+      let errorContent =
+        "Sorry, I encountered an error while processing your question.";
+
+      if (err.code === "ECONNREFUSED") {
+        errorContent =
+          "Cannot connect to server. Please make sure the backend is running on port 8000.";
+      } else if (err.response?.status === 500) {
+        errorContent =
+          "Server error occurred. Please try again or check the server logs.";
+      } else if (err.response?.status === 400) {
+        errorContent = "Invalid request. Please check your question format.";
+      } else if (err.message.includes("timeout")) {
+        errorContent =
+          "Request timed out. Please try again with a shorter question.";
+      } else if (err.message.includes("Network Error")) {
+        errorContent =
+          "Network error. Please check your internet connection and server status.";
+      }
+
       const errorMessage = {
         type: "assistant",
-        content:
-          "Sorry, I encountered an error while processing your question. Please try again.",
+        content: errorContent,
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, errorMessage]);
+      setError(errorContent);
     } finally {
       setLoading(false);
     }
@@ -178,6 +271,21 @@ function App() {
   };
 
   // Reset to upload new document
+  const retryBackendConnection = async () => {
+    try {
+      const result = await testConnection();
+      setBackendConnected(result.connected);
+      if (!result.connected && result.error) {
+        console.warn("Backend connection failed:", result.error);
+      } else if (result.connected) {
+        console.log("Backend connection retry successful!");
+      }
+    } catch (error) {
+      console.error("Connection retry error:", error);
+      setBackendConnected(false);
+    }
+  };
+
   const handleReset = () => {
     setFile(null);
     setDocId(null);
@@ -265,6 +373,51 @@ function App() {
       <div className="header">
         <h1>💬 Talk2PDF</h1>
         <p>Upload a PDF and start asking questions about its content</p>
+
+        {/* Backend Status */}
+        <div
+          style={{
+            position: "absolute",
+            top: "1rem",
+            left: "1rem",
+            display: "flex",
+            alignItems: "center",
+            gap: "0.5rem",
+            background: "rgba(255,255,255,0.15)",
+            padding: "0.5rem 1rem",
+            borderRadius: "6px",
+            color: "white",
+            fontSize: "0.9rem",
+          }}
+        >
+          <div
+            style={{
+              width: "8px",
+              height: "8px",
+              borderRadius: "50%",
+              backgroundColor: backendConnected ? "#4ade80" : "#ef4444",
+            }}
+          ></div>
+          {backendConnected ? "Backend Connected" : "Backend Disconnected"}
+          {!backendConnected && (
+            <button
+              onClick={retryBackendConnection}
+              style={{
+                marginLeft: "0.5rem",
+                background: "rgba(255,255,255,0.2)",
+                color: "white",
+                border: "1px solid rgba(255,255,255,0.3)",
+                borderRadius: "4px",
+                padding: "0.25rem 0.5rem",
+                fontSize: "0.8rem",
+                cursor: "pointer",
+              }}
+            >
+              Retry
+            </button>
+          )}
+        </div>
+
         {docId && (
           <button
             onClick={handleReset}
@@ -415,12 +568,25 @@ function App() {
               <button
                 className="upload-btn"
                 onClick={handleUpload}
-                disabled={uploading}
+                disabled={
+                  uploading ||
+                  (processingStatus && processingStatus.status === "processing")
+                }
                 style={{ marginTop: "1rem" }}
               >
                 {uploading ? (
                   <span>
                     Uploading...{" "}
+                    <div className="loading-dots">
+                      <div className="loading-dot"></div>
+                      <div className="loading-dot"></div>
+                      <div className="loading-dot"></div>
+                    </div>
+                  </span>
+                ) : processingStatus &&
+                  processingStatus.status === "processing" ? (
+                  <span>
+                    Processing Document...{" "}
                     <div className="loading-dots">
                       <div className="loading-dot"></div>
                       <div className="loading-dot"></div>
