@@ -5,6 +5,23 @@
 - GitHub repository with your code
 - Render account (for backend)
 - Netlify account (for frontend)
+- **Google Gemini API Key** (free tier available)
+
+## 🔑 **Setup Gemini API Key**
+
+### 1. Get Your Gemini API Key
+
+1. Go to [Google AI Studio](https://makersuite.google.com/app/apikey)
+2. Sign in with your Google account
+3. Click "Create API Key"
+4. Copy the generated API key (keep it secure!)
+
+### 2. Free Tier Limits
+
+- **15 requests per minute**
+- **1,500 requests per day**
+- **1 million tokens per minute**
+- Perfect for development and small-scale production!
 
 ## 🖥️ Backend Deployment on Render
 
@@ -31,6 +48,7 @@ Set these in Render dashboard:
 ```
 ENVIRONMENT=production
 FRONTEND_URL=https://your-netlify-url.netlify.app
+GEMINI_API_KEY=your_actual_gemini_api_key_here
 ```
 
 ### 4. Advanced Settings

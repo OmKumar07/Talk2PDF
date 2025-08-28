@@ -3,17 +3,30 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uuid, shutil, os
 import asyncio
-from ingest import ingest_document
-from query import answer_query, answer_complex_query
+from dotenv import load_dotenv
+from lightweight_ingest import lightweight_ingest_document
+from gemini_query import answer_query_gemini, answer_complex_query_gemini
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Production configuration
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+
+# Validate required environment variables
+if not GEMINI_API_KEY:
+    if ENVIRONMENT == "production":
+        raise ValueError("GEMINI_API_KEY environment variable is required for production")
+    else:
+        print("Warning: GEMINI_API_KEY not set. Some features may not work.")
+        print("💡 Create a .env file with GEMINI_API_KEY=your_key_here")
 
 app = FastAPI(
-    title="Talk2PDF API",
-    description="AI-powered PDF document chat interface",
-    version="1.0.0",
+    title="Talk2PDF API (Gemini-Powered)",
+    description="Lightweight AI-powered PDF document chat interface using Google Gemini",
+    version="2.0.0",
     docs_url="/docs" if ENVIRONMENT == "development" else None,
     redoc_url="/redoc" if ENVIRONMENT == "development" else None
 )
@@ -53,18 +66,23 @@ app.add_middleware(
 @app.get("/")
 def health_check():
     return {
-        "message": "Talk2PDF Backend is running!", 
+        "message": "Talk2PDF Backend (Gemini-Powered) is running!", 
         "status": "healthy",
         "environment": ENVIRONMENT,
-        "version": "1.0.0"
+        "version": "2.0.0",
+        "ai_provider": "Google Gemini",
+        "features": ["lightweight", "fast", "accurate"]
     }
 
 @app.get("/health")
 def health():
+    gemini_status = "configured" if GEMINI_API_KEY else "missing_api_key"
     return {
         "status": "ok",
         "environment": ENVIRONMENT,
-        "processing_queue": len(processing_status)
+        "processing_queue": len(processing_status),
+        "gemini_api": gemini_status,
+        "version": "2.0.0"
     }
 
 # -------------------------
@@ -73,17 +91,32 @@ def health():
 def process_document_background(doc_id: str, pdf_path: str):
     """Process document in background and update status"""
     try:
-        processing_status[doc_id] = {"status": "processing", "progress": 0}
-        print(f"Starting background processing for {doc_id}")
+        processing_status[doc_id] = {"status": "processing", "progress": 10}
+        print(f"Starting lightweight processing for {doc_id}")
         
-        result = ingest_document(doc_id, pdf_path)
+        # Use lightweight ingest
+        from lightweight_ingest import lightweight_ingest_document
+        success = lightweight_ingest_document(pdf_path, doc_id)
         
-        processing_status[doc_id] = {
-            "status": "completed", 
-            "progress": 100,
-            "num_chunks": result.get('num_chunks', 0)
-        }
-        print(f"Background processing completed for {doc_id}")
+        if success:
+            # Load the saved chunks to count them
+            import json
+            chunks_file = f"storage/{doc_id}_chunks.json"
+            if os.path.exists(chunks_file):
+                with open(chunks_file, 'r', encoding='utf-8') as f:
+                    chunks = json.load(f)
+                num_chunks = len(chunks)
+            else:
+                num_chunks = 0
+            
+            processing_status[doc_id] = {
+                "status": "completed", 
+                "progress": 100,
+                "num_chunks": num_chunks
+            }
+            print(f"Lightweight processing completed for {doc_id}: {num_chunks} chunks")
+        else:
+            raise Exception("Document processing failed")
         
     except Exception as e:
         processing_status[doc_id] = {
@@ -168,20 +201,36 @@ class AskRequest(BaseModel):
 
 @app.post("/ask")
 def ask(request: AskRequest):
+    """Ask a question about the document using Gemini API"""
     try:
-        result = answer_query(request.doc_id, request.question)
+        # Check if document is processed
+        if request.doc_id not in processing_status:
+            raise HTTPException(status_code=404, detail="Document not found")
         
-        # If the first attempt gives low confidence, try alternative approach
-        if result.get("score", 0) < 0.3 and result.get("answer") and len(result["answer"]) < 50:
+        status = processing_status[request.doc_id]
+        if status["status"] != "completed":
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Document is still processing. Status: {status['status']}"
+            )
+        
+        # Use Gemini-based query
+        result = answer_query_gemini(request.doc_id, request.question)
+        
+        # If confidence is low, try complex query approach
+        if result.get("confidence", 0) < 0.4:
             try:
-                # Try with broader search for complex questions
-                alternative_result = answer_complex_query(request.doc_id, request.question)
-                if alternative_result.get("score", 0) > result.get("score", 0):
+                alternative_result = answer_complex_query_gemini(request.doc_id, request.question)
+                if alternative_result.get("confidence", 0) > result.get("confidence", 0):
                     result = alternative_result
-            except:
-                pass  # Fall back to original result
+            except Exception as e:
+                print(f"Alternative query failed: {e}")
+                # Continue with original result
         
-        return result  # Return the result directly, not wrapped in another "answer" key
+        return result
+        
+    except HTTPException:
+        raise  # Re-raise HTTP exceptions
     except Exception as e:
         print(f"Error in /ask endpoint: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Query failed: {str(e)}")

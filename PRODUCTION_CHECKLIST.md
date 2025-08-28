@@ -1,6 +1,13 @@
-# 🚀 Production Deployment Checklist
+# 🚀 Production Deployment Checklist (Gemini-Powered)
 
 ## Pre-Deployment Setup
+
+### ✅ API Key Configuration
+
+- [ ] Obtained Google Gemini API key from [Google AI Studio](https://makersuite.google.com/app/apikey)
+- [ ] Verified API key works with test requests
+- [ ] Secured API key (never commit to git)
+- [ ] Configured rate limits awareness (15 requests/min free tier)
 
 ### ✅ Code Preparation
 
@@ -35,6 +42,7 @@
 - [ ] Set environment variables:
   - [ ] `ENVIRONMENT=production`
   - [ ] `FRONTEND_URL=https://your-netlify-url.netlify.app`
+  - [ ] `GEMINI_API_KEY=your_actual_api_key_here`
 - [ ] Deploy service
 - [ ] Test health endpoint: `/health`
 

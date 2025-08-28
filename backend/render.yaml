@@ -11,3 +11,5 @@ services:
         value: production
       - key: FRONTEND_URL
         value: https://your-netlify-url.netlify.app
+      - key: GEMINI_API_KEY
+        sync: false # This will be set manually in Render dashboard

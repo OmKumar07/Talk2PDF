@@ -19,29 +19,32 @@ Talk2PDF is a modern, full-stack application that allows you to upload PDF docum
 
 ### ⚡ **Performance & Reliability**
 
+- **Google Gemini API**: Lightweight, cloud-based AI for accurate responses
 - **Asynchronous Processing**: Background document processing prevents timeouts
-- **Batch Processing**: Memory-efficient chunk processing for large documents
+- **TF-IDF Retrieval**: Fast, memory-efficient chunk processing for large documents
 - **Real-time Progress**: Live status updates during document processing
 - **Error Recovery**: Robust error handling with detailed feedback
-- **Fast Upload**: Quick file uploads with immediate response
+- **Fast Deployment**: ~50MB backend (vs 500MB+ with local models)
+- **Cost Effective**: Free Gemini tier perfect for moderate usage
 
 ### 🧠 **Advanced AI Features**
 
+- **Google Gemini Integration**: State-of-the-art language model for natural conversations
+- **PDF-Only Responses**: Ensures answers come strictly from document content
 - **Multi-stage Retrieval**: Enhanced accuracy through multiple query strategies
 - **Smart Chunking**: Sentence-aware text segmentation for better context
-- **Question Analysis**: Intent recognition for optimized search strategies
 - **Confidence Scoring**: Reliability indicators for AI responses
 - **Source Citations**: Track answers back to specific document sections
-- **Context Building**: Intelligent context assembly for comprehensive answers
+- **Concise Answers**: Optimized for clear, direct responses
 
 ### 🛠️ **Technical Excellence**
 
 - **FastAPI Backend**: High-performance Python API with automatic documentation
-- **Vector Search**: FAISS-powered similarity search for accurate retrieval
-- **Transformer Models**: State-of-the-art NLP with SentenceTransformers and DeBERTa
+- **Google Gemini AI**: Cloud-based language model for accurate, contextual responses
+- **TF-IDF Search**: Lightweight, fast similarity search for document retrieval
 - **CORS Optimized**: Seamless frontend-backend communication
 - **Type Safety**: Full TypeScript support in frontend components
-- **Memory Optimized**: Efficient processing of large documents
+- **Memory Optimized**: Efficient processing of large documents (~50MB deployment)
 
 ## 🚀 Quick Start
 
@@ -59,6 +62,7 @@ Talk2PDF is a modern, full-stack application that allows you to upload PDF docum
 - **Python 3.12+**
 - **Node.js 18+**
 - **Git**
+- **Google Gemini API Key** (free tier available)
 
 ### 1. Clone the Repository
 
@@ -67,7 +71,17 @@ git clone https://github.com/OmKumar07/Talk2PDF.git
 cd Talk2PDF
 ```
 
-### 2. Backend Setup
+### 2. Setup Environment Variables
+
+```bash
+cd backend
+cp .env.example .env
+# Edit .env and add your GEMINI_API_KEY
+```
+
+📋 **[Complete Environment Setup Guide →](./ENVIRONMENT_SETUP.md)**
+
+### 3. Backend Setup
 
 ```bash
 # Navigate to backend
@@ -89,7 +103,7 @@ pip install -r requirements.txt
 uvicorn app:app --reload --host 0.0.0.0 --port 8000
 ```
 
-### 3. Frontend Setup
+### 4. Frontend Setup
 
 ```bash
 # Open new terminal and navigate to frontend

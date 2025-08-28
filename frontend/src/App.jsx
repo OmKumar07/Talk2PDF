@@ -113,7 +113,7 @@ function App() {
 
       if (resp && resp.doc_id) {
         setDocId(resp.doc_id);
-        setProcessingStatus({ status: "uploaded", progress: 0 });
+        setProcessingStatus({ status: "processing" });
 
         setMessages([
           {
@@ -221,7 +221,7 @@ function App() {
         content:
           resp.answer || "Sorry, I couldn't find an answer to your question.",
         sources: resp.sources || [],
-        confidence: resp.score || 0,
+        confidence: resp.confidence || resp.score || 0, // Handle both confidence and score
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, assistantMessage]);
@@ -585,20 +585,32 @@ function App() {
                   </span>
                 ) : processingStatus &&
                   processingStatus.status === "processing" ? (
-                  <span>
-                    Processing Document...{" "}
-                    <div className="loading-dots">
-                      <div className="loading-dot"></div>
-                      <div className="loading-dot"></div>
-                      <div className="loading-dot"></div>
-                    </div>
-                  </span>
+                  <span>Document Processing...</span>
                 ) : (
                   "Upload & Process PDF"
                 )}
               </button>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Document Processing Spinner */}
+      {processingStatus && processingStatus.status === "processing" && (
+        <div className="processing-loader">
+          <div className="spinner"></div>
+          <div className="processing-title">Processing Your Document</div>
+          <div className="processing-subtitle">
+            Analyzing content and creating searchable chunks...
+          </div>
+          <div style={{ 
+            marginTop: '1rem', 
+            fontSize: '0.8rem', 
+            color: '#64748b',
+            fontStyle: 'italic'
+          }}>
+            This may take 30-60 seconds for large documents...
+          </div>
         </div>
       )}
 
@@ -631,9 +643,17 @@ function App() {
                         <div className="message-sources">
                           <div className="sources-label">📖 Sources:</div>
                           <div className="sources-list">
-                            {message.sources.map((page, idx) => (
-                              <span key={idx} className="source-tag">
-                                Page {page}
+                            {message.sources.map((source, idx) => (
+                              <span 
+                                key={idx} 
+                                className="source-tag"
+                                title={typeof source === 'object' && source.text 
+                                  ? `"${source.text.slice(0, 100)}..."` 
+                                  : undefined}
+                              >
+                                {typeof source === 'object' 
+                                  ? `Page ${source.page}${source.relevance ? ` (${(source.relevance * 100).toFixed(0)}%)` : ''}` 
+                                  : `Page ${source}`}
                               </span>
                             ))}
                           </div>
