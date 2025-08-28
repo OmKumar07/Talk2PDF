@@ -10,10 +10,23 @@ from gemini_query import answer_query_gemini, answer_complex_query_gemini
 # Load environment variables from .env file
 load_dotenv()
 
-# Production configuration
+# Configuration from environment variables
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+HOST = os.getenv("HOST", "0.0.0.0")
+PORT = int(os.getenv("PORT", "8000"))
+DEBUG = os.getenv("DEBUG", "true").lower() == "true"
+DOCS_ENABLED = os.getenv("DOCS_ENABLED", "true").lower() == "true"
+MAX_FILE_SIZE = int(os.getenv("MAX_FILE_SIZE", "52428800"))  # 50MB default
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
+
+# Parse custom allowed origins if provided
+CUSTOM_ORIGINS = os.getenv("ALLOWED_ORIGINS", "")
+if CUSTOM_ORIGINS:
+    custom_origins_list = [origin.strip() for origin in CUSTOM_ORIGINS.split(",")]
+else:
+    custom_origins_list = []
 
 # Validate required environment variables
 if not GEMINI_API_KEY:
@@ -27,22 +40,24 @@ app = FastAPI(
     title="Talk2PDF API (Gemini-Powered)",
     description="Lightweight AI-powered PDF document chat interface using Google Gemini",
     version="2.0.0",
-    docs_url="/docs" if ENVIRONMENT == "development" else None,
-    redoc_url="/redoc" if ENVIRONMENT == "development" else None
+    docs_url="/docs" if (ENVIRONMENT == "development" and DOCS_ENABLED) else None,
+    redoc_url="/redoc" if (ENVIRONMENT == "development" and DOCS_ENABLED) else None
 )
 
 # Store processing status
 processing_status = {}
 
-# Production CORS configuration
+# CORS configuration with custom origins support
+base_origins = []
+
 if ENVIRONMENT == "production":
-    allowed_origins = [
+    base_origins = [
         FRONTEND_URL,
         "https://*.netlify.app",
         "https://*.netlify.com"
     ]
 else:
-    allowed_origins = [
+    base_origins = [
         "http://localhost:5173", 
         "http://localhost:5174", 
         "http://127.0.0.1:5173", 
@@ -50,6 +65,12 @@ else:
         "http://localhost:3000",
         "http://127.0.0.1:3000"
     ]
+
+# Combine with custom origins
+allowed_origins = base_origins + custom_origins_list
+
+# Remove duplicates while preserving order
+allowed_origins = list(dict.fromkeys(allowed_origins))
 
 # Enable CORS for frontend
 app.add_middleware(
@@ -139,10 +160,10 @@ async def upload_pdf(background_tasks: BackgroundTasks, file: UploadFile = File(
         print(f"Content type: {file.content_type}")
         print(f"File size: {file.size if hasattr(file, 'size') else 'Unknown'}")
         
-        # Check file size limit (50MB)
-        max_size = 50 * 1024 * 1024  # 50MB
+        # Check file size limit (configurable via environment)
+        max_size = MAX_FILE_SIZE
         if hasattr(file, 'size') and file.size and file.size > max_size:
-            raise HTTPException(status_code=413, detail=f"File too large. Maximum size is 50MB, received {file.size/1024/1024:.1f}MB")
+            raise HTTPException(status_code=413, detail=f"File too large. Maximum size is {max_size/1024/1024:.0f}MB, received {file.size/1024/1024:.1f}MB")
         
         if file.content_type != "application/pdf":
             print(f"Invalid content type: {file.content_type}")

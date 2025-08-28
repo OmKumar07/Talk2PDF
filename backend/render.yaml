@@ -2,7 +2,9 @@ services:
   - type: web
     name: talk2pdf-backend
     env: python
-    buildCommand: pip install -r requirements.txt
+    buildCommand: |
+      pip install -r requirements.txt
+      python config_loader.py production
     startCommand: uvicorn app:app --host 0.0.0.0 --port $PORT --workers 2
     envVars:
       - key: PYTHON_VERSION
@@ -11,5 +13,15 @@ services:
         value: production
       - key: FRONTEND_URL
         value: https://your-netlify-url.netlify.app
+      - key: HOST
+        value: 0.0.0.0
+      - key: DEBUG
+        value: false
+      - key: DOCS_ENABLED
+        value: false
+      - key: MAX_FILE_SIZE
+        value: 52428800
+      - key: LOG_LEVEL
+        value: INFO
       - key: GEMINI_API_KEY
         sync: false # This will be set manually in Render dashboard
