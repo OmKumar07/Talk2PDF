@@ -1,4 +1,11 @@
+import faiss
+import json
+import numpy as np
 from transformers import pipeline
+from sentence_transformers import SentenceTransformer
+
+# Load embedding model
+embedder = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
 qa = pipeline("question-answering", model="deepset/roberta-base-squad2", tokenizer="deepset/roberta-base-squad2")
 
 def answer_query(doc_id, question, top_k=4, threshold=0.25):

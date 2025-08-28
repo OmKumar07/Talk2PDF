@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_BASE_URL = "http://localhost:5000"; // backend URL
+const API_BASE_URL = "http://localhost:8000"; // backend URL
 
 export const uploadPDF = async (file) => {
   const formData = new FormData();
@@ -13,7 +13,10 @@ export const uploadPDF = async (file) => {
   return response.data;
 };
 
-export const askQuestion = async (question) => {
-  const response = await axios.post(`${API_BASE_URL}/ask`, { question });
+export const askQuestion = async (doc_id, question) => {
+  const response = await axios.post(`${API_BASE_URL}/ask`, {
+    doc_id,
+    question,
+  });
   return response.data;
 };

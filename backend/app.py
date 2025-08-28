@@ -10,7 +10,7 @@ app = FastAPI()
 # Enable CORS for frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # React/Vite frontend
+    allow_origins=["http://localhost:5173", "http://localhost:5174"],  # React/Vite frontend
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -47,7 +47,7 @@ class AskRequest(BaseModel):
 @app.post("/ask")
 def ask(request: AskRequest):
     try:
-        answer = answer_query(request.doc_id, request.question)
-        return {"answer": answer}
+        result = answer_query(request.doc_id, request.question)
+        return result  # Return the result directly, not wrapped in another "answer" key
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
