@@ -127,11 +127,12 @@ function App() {
       }
     } catch (err) {
       console.error("Upload failed:", err);
-      
+
       // Check if this is a page limit or storage error
       if (err.response?.status === 413) {
-        const errorMessage = err.response?.data?.detail || "File too large or too many pages";
-        
+        const errorMessage =
+          err.response?.data?.detail || "File too large or too many pages";
+
         // Check if it's a page count error
         if (errorMessage.includes("pages")) {
           setError(errorMessage);
@@ -318,9 +319,9 @@ function App() {
     try {
       setCleaningUp(true);
       setError("");
-      
+
       const result = await cleanupServer();
-      
+
       setMessages((prev) => [
         ...prev,
         {
@@ -329,9 +330,8 @@ function App() {
           timestamp: new Date(),
         },
       ]);
-      
+
       setShowCleanupOption(false);
-      
     } catch (err) {
       console.error("Cleanup failed:", err);
       setError("Server cleanup failed. Please try again later.");
@@ -656,11 +656,13 @@ function App() {
               >
                 {cleaningUp ? "Cleaning Server..." : "Clean Server & Try Again"}
               </button>
-              <div style={{ 
-                fontSize: "0.8rem", 
-                color: "#64748b", 
-                marginTop: "0.5rem" 
-              }}>
+              <div
+                style={{
+                  fontSize: "0.8rem",
+                  color: "#64748b",
+                  marginTop: "0.5rem",
+                }}
+              >
                 This will remove old files from the server to free up space
               </div>
             </div>
