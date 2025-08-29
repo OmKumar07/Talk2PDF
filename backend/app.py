@@ -3,6 +3,26 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uuid, shutil, os
 import asyncio
+import gc  # Memory management
+from dotenv import load_dotenv
+from lightweight_ingest import lightweight_ingest_document
+from gemini_query import answer_query_gemini, answer_complex_query_gemini
+
+# Load environment variables from .env file
+load_dotenv()
+
+# Production configuration
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+
+# Memory optimization settings
+MAX_FILE_SIZE = int(os.getenv("MAX_FILE_SIZE", "20971520"))  # Reduced to 20MB from 50MB
+MAX_CONCURRENT_UPLOADS = 2  # Limit concurrent processingort FastAPI, File, UploadFile, HTTPException, BackgroundTasks
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+import uuid, shutil, os
+import asyncio
 from dotenv import load_dotenv
 from lightweight_ingest import lightweight_ingest_document
 from gemini_query import answer_query_gemini, answer_complex_query_gemini
@@ -110,13 +130,15 @@ def health():
 # Background Processing Function
 # -------------------------
 def process_document_background(doc_id: str, pdf_path: str):
-    """Process document in background and update status"""
+    """Process document in background and update status with memory management"""
     try:
         processing_status[doc_id] = {"status": "processing", "progress": 10}
         print(f"Starting lightweight processing for {doc_id}")
         
+        # Force garbage collection before processing
+        gc.collect()
+        
         # Use lightweight ingest
-        from lightweight_ingest import lightweight_ingest_document
         success = lightweight_ingest_document(pdf_path, doc_id)
         
         if success:
@@ -124,9 +146,11 @@ def process_document_background(doc_id: str, pdf_path: str):
             import json
             chunks_file = f"storage/{doc_id}_chunks.json"
             if os.path.exists(chunks_file):
-                with open(chunks_file, 'r', encoding='utf-8') as f:
-                    chunks = json.load(f)
-                num_chunks = len(chunks)
+                # Read file size instead of loading all chunks to save memory
+                file_size = os.path.getsize(chunks_file)
+                # Estimate chunk count from file size (rough estimate)
+                estimated_chunks = max(1, file_size // 200)  # Rough estimate
+                num_chunks = estimated_chunks
             else:
                 num_chunks = 0
             
@@ -135,9 +159,12 @@ def process_document_background(doc_id: str, pdf_path: str):
                 "progress": 100,
                 "num_chunks": num_chunks
             }
-            print(f"Lightweight processing completed for {doc_id}: {num_chunks} chunks")
+            print(f"Lightweight processing completed for {doc_id}: ~{num_chunks} chunks")
         else:
             raise Exception("Document processing failed")
+        
+        # Force cleanup after processing
+        gc.collect()
         
     except Exception as e:
         processing_status[doc_id] = {
@@ -149,6 +176,8 @@ def process_document_background(doc_id: str, pdf_path: str):
         # Clean up the saved file if processing fails
         if os.path.exists(pdf_path):
             os.remove(pdf_path)
+        # Force cleanup on error
+        gc.collect()
 
 # -------------------------
 # Upload PDF Endpoint (Fast Response)
@@ -156,6 +185,16 @@ def process_document_background(doc_id: str, pdf_path: str):
 @app.post("/upload")
 async def upload_pdf(background_tasks: BackgroundTasks, file: UploadFile = File(...)):
     try:
+        # Check if too many documents are being processed
+        active_processing = sum(1 for status in processing_status.values() 
+                              if status.get("status") == "processing")
+        
+        if active_processing >= MAX_CONCURRENT_UPLOADS:
+            raise HTTPException(
+                status_code=429, 
+                detail="Too many documents being processed. Please wait and try again."
+            )
+        
         print(f"Received upload request for file: {file.filename}")
         print(f"Content type: {file.content_type}")
         print(f"File size: {file.size if hasattr(file, 'size') else 'Unknown'}")
@@ -200,6 +239,9 @@ async def upload_pdf(background_tasks: BackgroundTasks, file: UploadFile = File(
     except Exception as e:
         print(f"Unexpected upload error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
+    finally:
+        # Force cleanup after each upload
+        gc.collect()
 
 # -------------------------
 # Check Processing Status Endpoint

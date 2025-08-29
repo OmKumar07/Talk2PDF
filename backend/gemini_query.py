@@ -5,6 +5,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 import re
+import gc  # Memory management
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -25,28 +26,38 @@ else:
     model = genai.GenerativeModel('gemini-1.5-flash')
 
 class LightweightRetriever:
-    """Lightweight text retrieval using TF-IDF instead of heavy models"""
+    """Memory-optimized lightweight text retrieval using TF-IDF"""
     
     def __init__(self):
         self.vectorizer = TfidfVectorizer(
-            max_features=5000,
+            max_features=2000,  # Reduced from 5000 to save memory
             stop_words='english',
             ngram_range=(1, 2),
-            max_df=0.95,
-            min_df=2
+            max_df=0.90,  # More aggressive filtering
+            min_df=1
         )
         self.chunks = []
         self.vectors = None
         
     def index_chunks(self, chunks):
-        """Index document chunks using TF-IDF"""
+        """Index document chunks using TF-IDF with memory optimization"""
+        # Limit chunks to prevent memory issues
+        max_chunks = 500
+        if len(chunks) > max_chunks:
+            print(f"Limiting to {max_chunks} chunks for memory efficiency")
+            chunks = chunks[:max_chunks]
+            
         self.chunks = chunks
         if chunks:
-            texts = [chunk.get('text', '') for chunk in chunks]
+            texts = [chunk.get('text', '')[:1000] for chunk in chunks]  # Limit text length
             self.vectors = self.vectorizer.fit_transform(texts)
+            
+            # Clear temporary data
+            del texts
+            gc.collect()
         
-    def search(self, query, top_k=5):
-        """Search for relevant chunks using cosine similarity"""
+    def search(self, query, top_k=3):  # Reduced from 5 to 3
+        """Search for relevant chunks using cosine similarity with memory optimization"""
         if not self.chunks or self.vectors is None:
             return []
             
