@@ -1,5 +1,6 @@
-from fastapi import FastAPI, File, UploadFile, HTTPException, BackgroundTasks
+from fastapi import FastAPI, File, UploadFile, HTTPException, BackgroundTasks, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 import uuid, shutil, os
 import asyncio
@@ -97,8 +98,7 @@ base_origins = []
 if ENVIRONMENT == "production":
     base_origins = [
         FRONTEND_URL,
-        "https://*.netlify.app",
-        "https://*.netlify.com"
+        "https://talkpdf.netlify.app"
     ]
 else:
     base_origins = [
@@ -116,6 +116,13 @@ allowed_origins = base_origins + custom_origins_list
 # Remove duplicates while preserving order
 allowed_origins = list(dict.fromkeys(allowed_origins))
 
+# Debug logging for CORS configuration
+print(f"CORS Configuration:")
+print(f"Environment: {ENVIRONMENT}")
+print(f"Frontend URL: {FRONTEND_URL}")
+print(f"Custom Origins: {custom_origins_list}")
+print(f"Final Allowed Origins: {allowed_origins}")
+
 # Enable CORS for frontend
 app.add_middleware(
     CORSMiddleware,
@@ -123,7 +130,20 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
+    expose_headers=["*"]
 )
+
+# Global OPTIONS handler for CORS preflight
+@app.options("/{full_path:path}")
+async def options_handler(request: Request, full_path: str):
+    return JSONResponse(
+        content="OK",
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+            "Access-Control-Allow-Headers": "*",
+        }
+    )
 
 # -------------------------
 # Health Check Endpoint
