@@ -123,3 +123,18 @@ export const testConnection = async () => {
     };
   }
 };
+
+// Server cleanup function for storage issues
+export const cleanupServer = async () => {
+  try {
+    console.log("Requesting server cleanup...");
+    const response = await axios.post(`${API_BASE_URL}/cleanup-server`, {}, {
+      timeout: 30000, // 30 seconds for cleanup
+    });
+    console.log("Cleanup response:", response.data);
+    return response.data;
+  } catch (error) {
+    console.error("Server cleanup error:", error);
+    throw error;
+  }
+};

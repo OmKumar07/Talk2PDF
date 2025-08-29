@@ -343,7 +343,35 @@ async def upload_pdf(background_tasks: BackgroundTasks, file: UploadFile = File(
             print(f"Error saving file: {e}")
             raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
         
-        print(f"File saved successfully, starting background processing...")
+        print(f"File saved successfully, checking page count...")
+
+        # Check page count to prevent large documents
+        try:
+            import pdfplumber
+            with pdfplumber.open(path) as pdf:
+                page_count = len(pdf.pages)
+                print(f"PDF has {page_count} pages")
+                
+                if page_count > 40:
+                    # Clean up the uploaded file
+                    try:
+                        os.remove(path)
+                        print(f"Removed oversized PDF: {path}")
+                    except:
+                        pass
+                    
+                    raise HTTPException(
+                        status_code=413, 
+                        detail=f"PDF has {page_count} pages. Please upload a smaller PDF with 40 pages or fewer. Large documents may cause server storage issues."
+                    )
+        except HTTPException:
+            raise  # Re-raise our custom exception
+        except Exception as e:
+            print(f"Error checking page count: {e}")
+            # If we can't check pages, allow processing but with warning
+            pass
+
+        print(f"Page count check passed, starting background processing...")
 
         # Start background processing
         processing_status[doc_id] = {"status": "uploaded", "progress": 0}
@@ -462,4 +490,67 @@ def ask(request: AskRequest):
         raise HTTPException(
             status_code=500, 
             detail="An unexpected error occurred while processing your question. Please try again."
+        )
+
+# -------------------------
+# Server Cleanup Endpoint
+# -------------------------
+@app.post("/cleanup-server")
+async def cleanup_server():
+    """Emergency server cleanup to free storage space"""
+    try:
+        from file_cleanup import cleanup_old_files, get_storage_stats
+        
+        # Get stats before cleanup
+        stats_before = get_storage_stats()
+        
+        # Perform aggressive cleanup (reduce age to 1 hour for emergency cleanup)
+        emergency_age_hours = 1
+        emergency_max_docs = 10
+        
+        cleaned_files = cleanup_old_files(
+            max_age_hours=emergency_age_hours,
+            max_documents=emergency_max_docs
+        )
+        
+        # Get stats after cleanup
+        stats_after = get_storage_stats()
+        
+        # Clear processing status for old documents
+        current_docs = set()
+        try:
+            for file in os.listdir("storage"):
+                if file.endswith("_chunks.json"):
+                    doc_id = file.replace("_chunks.json", "")
+                    current_docs.add(doc_id)
+        except:
+            pass
+        
+        # Remove processing status for documents that no longer exist
+        to_remove = []
+        for doc_id in processing_status:
+            if doc_id not in current_docs:
+                to_remove.append(doc_id)
+        
+        for doc_id in to_remove:
+            processing_status.pop(doc_id, None)
+        
+        return {
+            "success": True,
+            "message": "Server cleanup completed successfully",
+            "cleaned_files": cleaned_files,
+            "processing_status_cleared": len(to_remove),
+            "storage_before": stats_before,
+            "storage_after": stats_after,
+            "cleanup_settings": {
+                "emergency_age_hours": emergency_age_hours,
+                "emergency_max_docs": emergency_max_docs
+            }
+        }
+        
+    except Exception as e:
+        print(f"Error during server cleanup: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Server cleanup failed: {str(e)}"
         )

@@ -4,6 +4,7 @@ import {
   askQuestion,
   testConnection,
   checkProcessingStatus,
+  cleanupServer,
 } from "./api";
 import "./App.css";
 
@@ -25,6 +26,8 @@ function App() {
   const [error, setError] = useState("");
   const [dragOver, setDragOver] = useState(false);
   const [backendConnected, setBackendConnected] = useState(false);
+  const [showCleanupOption, setShowCleanupOption] = useState(false);
+  const [cleaningUp, setCleaningUp] = useState(false);
 
   const fileInputRef = useRef(null);
   const messagesEndRef = useRef(null);
@@ -124,7 +127,21 @@ function App() {
       }
     } catch (err) {
       console.error("Upload failed:", err);
-      setError("Upload failed. Please check if the server is running.");
+      
+      // Check if this is a page limit or storage error
+      if (err.response?.status === 413) {
+        const errorMessage = err.response?.data?.detail || "File too large or too many pages";
+        
+        // Check if it's a page count error
+        if (errorMessage.includes("pages")) {
+          setError(errorMessage);
+          setShowCleanupOption(true);
+        } else {
+          setError("Upload failed. Please check if the server is running.");
+        }
+      } else {
+        setError("Upload failed. Please check if the server is running.");
+      }
     } finally {
       setUploading(false);
     }
@@ -293,6 +310,34 @@ function App() {
     ]);
     setCurrentQuestion("");
     setError("");
+    setShowCleanupOption(false);
+  };
+
+  // Handle server cleanup
+  const handleCleanupServer = async () => {
+    try {
+      setCleaningUp(true);
+      setError("");
+      
+      const result = await cleanupServer();
+      
+      setMessages((prev) => [
+        ...prev,
+        {
+          type: "system",
+          content: `Server cleanup completed! Freed up space by removing ${result.cleaned_files} old files. You can now try uploading your PDF again.`,
+          timestamp: new Date(),
+        },
+      ]);
+      
+      setShowCleanupOption(false);
+      
+    } catch (err) {
+      console.error("Cleanup failed:", err);
+      setError("Server cleanup failed. Please try again later.");
+    } finally {
+      setCleaningUp(false);
+    }
   };
 
   // Handle Enter key press
@@ -590,7 +635,38 @@ function App() {
       )}
 
       {/* Error Message */}
-      {error && <div className="error-message">Error: {error}</div>}
+      {error && (
+        <div className="error-message">
+          Error: {error}
+          {showCleanupOption && (
+            <div style={{ marginTop: "1rem" }}>
+              <button
+                onClick={handleCleanupServer}
+                disabled={cleaningUp}
+                style={{
+                  background: "#dc2626",
+                  color: "white",
+                  border: "none",
+                  padding: "0.5rem 1rem",
+                  borderRadius: "6px",
+                  cursor: cleaningUp ? "not-allowed" : "pointer",
+                  fontWeight: "600",
+                  opacity: cleaningUp ? 0.7 : 1,
+                }}
+              >
+                {cleaningUp ? "Cleaning Server..." : "Clean Server & Try Again"}
+              </button>
+              <div style={{ 
+                fontSize: "0.8rem", 
+                color: "#64748b", 
+                marginTop: "0.5rem" 
+              }}>
+                This will remove old files from the server to free up space
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Chat Container */}
       {docId && processingStatus?.status !== "processing" && (
