@@ -4,9 +4,12 @@ from pydantic import BaseModel
 import uuid, shutil, os
 import asyncio
 import gc  # Memory management
+import threading
+import time
 from dotenv import load_dotenv
 from lightweight_ingest import lightweight_ingest_document
 from gemini_query import answer_query_gemini, answer_complex_query_gemini
+from file_cleanup import FileCleanupManager
 
 # Load environment variables from .env file
 load_dotenv()
@@ -67,6 +70,26 @@ app = FastAPI(
 # Store processing status
 processing_status = {}
 
+# Initialize cleanup manager
+cleanup_manager = FileCleanupManager()
+
+# Background cleanup thread
+def periodic_cleanup():
+    """Run periodic cleanup in background"""
+    while True:
+        try:
+            # Wait 1 hour between cleanups
+            time.sleep(3600)  # 1 hour = 3600 seconds
+            print("🧹 Running periodic cleanup...")
+            cleanup_manager.run_full_cleanup()
+        except Exception as e:
+            print(f"❌ Error in periodic cleanup: {e}")
+            time.sleep(600)  # Wait 10 minutes on error
+
+# Start cleanup thread
+cleanup_thread = threading.Thread(target=periodic_cleanup, daemon=True)
+cleanup_thread.start()
+
 # CORS configuration with custom origins support
 base_origins = []
 
@@ -118,12 +141,50 @@ def health_check():
 @app.get("/health")
 def health():
     gemini_status = "configured" if GEMINI_API_KEY else "missing_api_key"
+    storage_stats = cleanup_manager.get_storage_stats()
     return {
         "status": "ok",
         "environment": ENVIRONMENT,
         "processing_queue": len(processing_status),
         "gemini_api": gemini_status,
-        "version": "2.0.0"
+        "version": "2.0.0",
+        "storage": {
+            "total_files": storage_stats['total_files'],
+            "total_size_mb": round(storage_stats['total_size_mb'], 1),
+            "pdf_count": storage_stats['pdf_count']
+        }
+    }
+
+# -------------------------
+# Storage Management Endpoints
+# -------------------------
+@app.post("/cleanup")
+def manual_cleanup():
+    """Manually trigger storage cleanup"""
+    try:
+        removed, freed_bytes = cleanup_manager.run_full_cleanup()
+        return {
+            "status": "success",
+            "files_removed": removed,
+            "space_freed_mb": round(freed_bytes / 1024 / 1024, 1),
+            "message": f"Cleanup completed: {removed} files removed, {freed_bytes/1024/1024:.1f}MB freed"
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "error": str(e)
+        }
+
+@app.get("/storage/stats")
+def get_storage_stats():
+    """Get storage statistics"""
+    stats = cleanup_manager.get_storage_stats()
+    return {
+        "total_files": stats['total_files'],
+        "total_size_mb": round(stats['total_size_mb'], 1),
+        "pdf_count": stats['pdf_count'],
+        "chunks_count": stats['chunks_count'],
+        "index_count": stats['index_count']
     }
 
 # -------------------------
@@ -173,9 +234,17 @@ def process_document_background(doc_id: str, pdf_path: str):
             "error": str(e)
         }
         print(f"Background processing failed for {doc_id}: {e}")
-        # Clean up the saved file if processing fails
-        if os.path.exists(pdf_path):
-            os.remove(pdf_path)
+        
+        # Clean up ALL files associated with failed processing
+        try:
+            files_to_cleanup = cleanup_manager.get_document_files(doc_id)
+            for file_path in files_to_cleanup:
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+                    print(f"🗑️ Cleaned up failed processing file: {file_path}")
+        except Exception as cleanup_error:
+            print(f"Error during cleanup: {cleanup_error}")
+        
         # Force cleanup on error
         gc.collect()
 
