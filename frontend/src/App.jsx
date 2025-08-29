@@ -4,7 +4,6 @@ import {
   askQuestion,
   testConnection,
   checkProcessingStatus,
-  cleanupServer,
 } from "./api";
 import "./App.css";
 
@@ -26,8 +25,6 @@ function App() {
   const [error, setError] = useState("");
   const [dragOver, setDragOver] = useState(false);
   const [backendConnected, setBackendConnected] = useState(false);
-  const [showCleanupOption, setShowCleanupOption] = useState(false);
-  const [cleaningUp, setCleaningUp] = useState(false);
 
   const fileInputRef = useRef(null);
   const messagesEndRef = useRef(null);
@@ -136,7 +133,6 @@ function App() {
         // Check if it's a page count error
         if (errorMessage.includes("pages")) {
           setError(errorMessage);
-          setShowCleanupOption(true);
         } else {
           setError("Upload failed. Please check if the server is running.");
         }
@@ -311,33 +307,6 @@ function App() {
     ]);
     setCurrentQuestion("");
     setError("");
-    setShowCleanupOption(false);
-  };
-
-  // Handle server cleanup
-  const handleCleanupServer = async () => {
-    try {
-      setCleaningUp(true);
-      setError("");
-
-      const result = await cleanupServer();
-
-      setMessages((prev) => [
-        ...prev,
-        {
-          type: "system",
-          content: `Server cleanup completed! Freed up space by removing ${result.cleaned_files} old files. You can now try uploading your PDF again.`,
-          timestamp: new Date(),
-        },
-      ]);
-
-      setShowCleanupOption(false);
-    } catch (err) {
-      console.error("Cleanup failed:", err);
-      setError("Server cleanup failed. Please try again later.");
-    } finally {
-      setCleaningUp(false);
-    }
   };
 
   // Handle Enter key press
@@ -638,23 +607,21 @@ function App() {
       {error && (
         <div className="error-message">
           Error: {error}
-          {showCleanupOption && (
+          {error.includes("pages") && (
             <div style={{ marginTop: "1rem" }}>
               <button
-                onClick={handleCleanupServer}
-                disabled={cleaningUp}
+                onClick={() => window.location.reload()}
                 style={{
-                  background: "#dc2626",
+                  background: "#3b82f6",
                   color: "white",
                   border: "none",
                   padding: "0.5rem 1rem",
                   borderRadius: "6px",
-                  cursor: cleaningUp ? "not-allowed" : "pointer",
+                  cursor: "pointer",
                   fontWeight: "600",
-                  opacity: cleaningUp ? 0.7 : 1,
                 }}
               >
-                {cleaningUp ? "Cleaning Server..." : "Clean Server & Try Again"}
+                Reload Page & Try Again
               </button>
               <div
                 style={{
@@ -663,7 +630,7 @@ function App() {
                   marginTop: "0.5rem",
                 }}
               >
-                This will remove old files from the server to free up space
+                Try uploading a PDF with fewer pages
               </div>
             </div>
           )}

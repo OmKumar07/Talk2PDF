@@ -44,6 +44,7 @@ PORT = int(os.getenv("PORT", "8000"))
 DEBUG = os.getenv("DEBUG", "true").lower() == "true"
 DOCS_ENABLED = os.getenv("DOCS_ENABLED", "true").lower() == "true"
 MAX_FILE_SIZE = int(os.getenv("MAX_FILE_SIZE", "52428800"))  # 50MB default
+MAX_PDF_PAGES = int(os.getenv("MAX_PDF_PAGES", "200"))  # 200 pages default
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 
 # Parse custom allowed origins if provided
@@ -352,7 +353,7 @@ async def upload_pdf(background_tasks: BackgroundTasks, file: UploadFile = File(
                 page_count = len(pdf.pages)
                 print(f"PDF has {page_count} pages")
                 
-                if page_count > 40:
+                if page_count > MAX_PDF_PAGES:
                     # Clean up the uploaded file
                     try:
                         os.remove(path)
@@ -362,7 +363,7 @@ async def upload_pdf(background_tasks: BackgroundTasks, file: UploadFile = File(
                     
                     raise HTTPException(
                         status_code=413, 
-                        detail=f"PDF has {page_count} pages. Please upload a smaller PDF with 40 pages or fewer. Large documents may cause server storage issues."
+                        detail=f"PDF has {page_count} pages. Please upload a smaller PDF with {MAX_PDF_PAGES} pages or fewer. Large documents may cause server storage issues."
                     )
         except HTTPException:
             raise  # Re-raise our custom exception
