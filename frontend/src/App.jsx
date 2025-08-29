@@ -508,6 +508,17 @@ function App() {
                     fontSize: "0.85rem",
                   }}
                 >
+                  <div style={{ marginBottom: "1rem", padding: "1rem", backgroundColor: "#fef3c7", borderRadius: "8px", border: "1px solid #fbbf24" }}>
+                    <div style={{ fontWeight: "600", color: "#92400e", marginBottom: "0.5rem" }}>
+                      ⚡ For Best Performance:
+                    </div>
+                    <div style={{ color: "#92400e", fontSize: "0.8rem", lineHeight: "1.4" }}>
+                      • Upload PDFs with <strong>fewer than 50 pages</strong><br/>
+                      • File size under <strong>20MB</strong><br/>
+                      • Processing timeout: <strong>10 minutes</strong><br/>
+                      • Text-based PDFs work better than scanned images
+                    </div>
+                  </div>
                   <div style={{ marginBottom: "0.5rem" }}>
                     ✨ Try it with documents like:
                   </div>

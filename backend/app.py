@@ -21,7 +21,8 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 # Memory optimization settings
 MAX_FILE_SIZE = int(os.getenv("MAX_FILE_SIZE", "20971520"))  # Reduced to 20MB from 50MB
-MAX_CONCURRENT_UPLOADS = 2  # Limit concurrent processingort FastAPI, File, UploadFile, HTTPException, BackgroundTasks
+MAX_CONCURRENT_UPLOADS = 2  # Limit concurrent processing
+PROCESSING_TIMEOUT_MINUTES = 10  # Timeout after 10 minutesort FastAPI, File, UploadFile, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uuid, shutil, os
@@ -192,15 +193,31 @@ def get_storage_stats():
 # -------------------------
 def process_document_background(doc_id: str, pdf_path: str):
     """Process document in background and update status with memory management"""
+    start_time = time.time()
+    timeout_seconds = PROCESSING_TIMEOUT_MINUTES * 60
+    
     try:
-        processing_status[doc_id] = {"status": "processing", "progress": 10}
+        processing_status[doc_id] = {
+            "status": "processing", 
+            "progress": 10,
+            "start_time": start_time,
+            "timeout_minutes": PROCESSING_TIMEOUT_MINUTES
+        }
         print(f"Starting lightweight processing for {doc_id}")
         
         # Force garbage collection before processing
         gc.collect()
         
-        # Use lightweight ingest
+        # Check timeout before processing
+        if time.time() - start_time > timeout_seconds:
+            raise Exception(f"Processing timeout after {PROCESSING_TIMEOUT_MINUTES} minutes")
+        
+        # Use lightweight ingest with timeout check
         success = lightweight_ingest_document(pdf_path, doc_id)
+        
+        # Check timeout after processing
+        if time.time() - start_time > timeout_seconds:
+            raise Exception(f"Processing timeout after {PROCESSING_TIMEOUT_MINUTES} minutes")
         
         if success:
             # Load the saved chunks to count them
@@ -215,12 +232,14 @@ def process_document_background(doc_id: str, pdf_path: str):
             else:
                 num_chunks = 0
             
+            processing_time = time.time() - start_time
             processing_status[doc_id] = {
                 "status": "completed", 
                 "progress": 100,
-                "num_chunks": num_chunks
+                "num_chunks": num_chunks,
+                "processing_time_seconds": round(processing_time, 1)
             }
-            print(f"Lightweight processing completed for {doc_id}: ~{num_chunks} chunks")
+            print(f"Lightweight processing completed for {doc_id}: ~{num_chunks} chunks in {processing_time:.1f}s")
         else:
             raise Exception("Document processing failed")
         
@@ -228,12 +247,20 @@ def process_document_background(doc_id: str, pdf_path: str):
         gc.collect()
         
     except Exception as e:
+        processing_time = time.time() - start_time
+        error_msg = str(e)
+        
+        # Check if it's a timeout error
+        if "timeout" in error_msg.lower() or processing_time > timeout_seconds:
+            error_msg = f"Processing timeout after {PROCESSING_TIMEOUT_MINUTES} minutes. Please try a smaller document with fewer pages."
+        
         processing_status[doc_id] = {
             "status": "failed", 
             "progress": 0,
-            "error": str(e)
+            "error": error_msg,
+            "processing_time_seconds": round(processing_time, 1)
         }
-        print(f"Background processing failed for {doc_id}: {e}")
+        print(f"Background processing failed for {doc_id}: {error_msg}")
         
         # Clean up ALL files associated with failed processing
         try:
@@ -271,7 +298,12 @@ async def upload_pdf(background_tasks: BackgroundTasks, file: UploadFile = File(
         # Check file size limit (configurable via environment)
         max_size = MAX_FILE_SIZE
         if hasattr(file, 'size') and file.size and file.size > max_size:
-            raise HTTPException(status_code=413, detail=f"File too large. Maximum size is {max_size/1024/1024:.0f}MB, received {file.size/1024/1024:.1f}MB")
+            max_mb = max_size / 1024 / 1024
+            current_mb = file.size / 1024 / 1024
+            raise HTTPException(
+                status_code=413, 
+                detail=f"File too large. Maximum size is {max_mb:.0f}MB, received {current_mb:.1f}MB. Please try a smaller PDF with fewer pages."
+            )
         
         if file.content_type != "application/pdf":
             print(f"Invalid content type: {file.content_type}")
@@ -300,7 +332,12 @@ async def upload_pdf(background_tasks: BackgroundTasks, file: UploadFile = File(
         return {
             "doc_id": doc_id,
             "status": "uploaded",
-            "message": "File uploaded successfully. Processing in background..."
+            "message": f"File uploaded successfully. Processing in background... (timeout: {PROCESSING_TIMEOUT_MINUTES} minutes)",
+            "processing_info": {
+                "timeout_minutes": PROCESSING_TIMEOUT_MINUTES,
+                "file_size_mb": round((file.size / 1024 / 1024), 1) if hasattr(file, 'size') and file.size else None,
+                "recommendation": "For faster processing, use PDFs with fewer pages (under 50 pages recommended)"
+            }
         }
         
     except HTTPException:
@@ -335,26 +372,63 @@ class AskRequest(BaseModel):
 def ask(request: AskRequest):
     """Ask a question about the document using Gemini API"""
     try:
+        print(f"Received ask request for doc_id: {request.doc_id}, question: {request.question[:100]}...")
+        
         # Check if document is processed
         if request.doc_id not in processing_status:
-            raise HTTPException(status_code=404, detail="Document not found")
+            print(f"Document {request.doc_id} not found in processing_status")
+            raise HTTPException(status_code=404, detail="Document not found. Please upload a document first.")
         
         status = processing_status[request.doc_id]
-        if status["status"] != "completed":
+        print(f"Document {request.doc_id} status: {status}")
+        
+        if status["status"] == "processing":
+            raise HTTPException(
+                status_code=202, 
+                detail="Document is still being processed. Please wait and try again."
+            )
+        elif status["status"] == "failed":
+            error_msg = status.get("error", "Unknown error")
             raise HTTPException(
                 status_code=400, 
-                detail=f"Document is still processing. Status: {status['status']}"
+                detail=f"Document processing failed: {error_msg}"
+            )
+        elif status["status"] != "completed":
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Document is not ready. Current status: {status['status']}"
             )
         
-        # Use Gemini-based query
-        result = answer_query_gemini(request.doc_id, request.question)
+        # Check if document files actually exist
+        chunks_file = f"storage/{request.doc_id}_chunks.json"
+        if not os.path.exists(chunks_file):
+            print(f"Chunks file not found: {chunks_file}")
+            raise HTTPException(
+                status_code=404, 
+                detail="Document data not found. Please re-upload the document."
+            )
+        
+        print(f"Using Gemini-based query for doc_id: {request.doc_id}")
+        
+        # Use Gemini-based query with error handling
+        try:
+            result = answer_query_gemini(request.doc_id, request.question)
+            print(f"Gemini query result confidence: {result.get('confidence', 0)}")
+        except Exception as e:
+            print(f"Error in answer_query_gemini: {e}")
+            raise HTTPException(
+                status_code=500, 
+                detail="Failed to process your question. Please try again with a different question."
+            )
         
         # If confidence is low, try complex query approach
         if result.get("confidence", 0) < 0.4:
             try:
+                print("Trying alternative complex query approach...")
                 alternative_result = answer_complex_query_gemini(request.doc_id, request.question)
                 if alternative_result.get("confidence", 0) > result.get("confidence", 0):
                     result = alternative_result
+                    print("Using alternative result with higher confidence")
             except Exception as e:
                 print(f"Alternative query failed: {e}")
                 # Continue with original result
@@ -364,5 +438,8 @@ def ask(request: AskRequest):
     except HTTPException:
         raise  # Re-raise HTTP exceptions
     except Exception as e:
-        print(f"Error in /ask endpoint: {e}")
-        raise HTTPException(status_code=500, detail=f"Query failed: {str(e)}")
+        print(f"Unexpected error in /ask endpoint: {e}")
+        raise HTTPException(
+            status_code=500, 
+            detail="An unexpected error occurred while processing your question. Please try again."
+        )
