@@ -15,13 +15,7 @@ function App() {
     {
       type: "system",
       content:
-        "👋 Welcome to Talk2PDF! Upload a PDF document to start asking questions about its content.",
-      timestamp: new Date(),
-    },
-    {
-      type: "system",
-      content:
-        "✨ Features: AI-powered answers, source citations, confidence scores, and more!",
+        "Welcome to Talk2PDF! Upload a PDF document to start asking questions about its content.",
       timestamp: new Date(),
     },
   ]);
@@ -118,7 +112,7 @@ function App() {
         setMessages([
           {
             type: "system",
-            content: `✅ Successfully uploaded "${file.name}". Processing document...`,
+            content: `Successfully uploaded "${file.name}". Processing document...`,
             timestamp: new Date(),
           },
         ]);
@@ -147,7 +141,7 @@ function App() {
           ...prev,
           {
             type: "system",
-            content: `🎉 Document processed successfully! Found ${
+            content: `Document processed successfully! Found ${
               status.num_chunks || 0
             } text chunks. You can now ask questions!`,
             timestamp: new Date(),
@@ -155,7 +149,7 @@ function App() {
           {
             type: "system",
             content:
-              "💡 Try asking: " +
+              "Try asking: " +
               sampleQuestions[
                 Math.floor(Math.random() * sampleQuestions.length)
               ],
@@ -293,61 +287,12 @@ function App() {
       {
         type: "system",
         content:
-          "👋 Welcome to Talk2PDF! Upload a PDF document to start asking questions about its content.",
-        timestamp: new Date(),
-      },
-      {
-        type: "system",
-        content:
-          "✨ Features: AI-powered answers, source citations, confidence scores, and more!",
+          "Welcome to Talk2PDF! Upload a PDF document to start asking questions about its content.",
         timestamp: new Date(),
       },
     ]);
     setCurrentQuestion("");
     setError("");
-  };
-
-  // Show demo conversation
-  const showDemo = () => {
-    setMessages([
-      {
-        type: "system",
-        content:
-          "🎭 Demo Mode: Here's how a conversation looks after uploading a PDF",
-        timestamp: new Date(),
-      },
-      {
-        type: "user",
-        content: "What is machine learning?",
-        timestamp: new Date(),
-      },
-      {
-        type: "assistant",
-        content:
-          "Machine learning is a subset of artificial intelligence that enables computers to learn and improve from experience without being explicitly programmed. It involves algorithms that can identify patterns in data and make predictions or decisions based on those patterns.",
-        sources: [1, 3, 7],
-        confidence: 0.92,
-        timestamp: new Date(),
-      },
-      {
-        type: "user",
-        content: "Can you explain neural networks?",
-        timestamp: new Date(),
-      },
-      {
-        type: "assistant",
-        content:
-          "Neural networks are computing systems inspired by biological neural networks. They consist of interconnected nodes (neurons) that process information in layers. Each connection has a weight that adjusts as learning proceeds, allowing the network to recognize complex patterns in data.",
-        sources: [4, 5, 6],
-        confidence: 0.87,
-        timestamp: new Date(),
-      },
-      {
-        type: "system",
-        content: "💡 Upload your own PDF to start asking real questions!",
-        timestamp: new Date(),
-      },
-    ]);
   };
 
   // Handle Enter key press
@@ -371,7 +316,7 @@ function App() {
     <div className="app-container">
       {/* Header */}
       <div className="header">
-        <h1>💬 Talk2PDF</h1>
+        <h1>Talk2PDF</h1>
         <p>Upload a PDF and start asking questions about its content</p>
 
         {/* Backend Status */}
@@ -421,20 +366,28 @@ function App() {
         {docId && (
           <button
             onClick={handleReset}
+            disabled={processingStatus?.status === "processing"}
             style={{
               position: "absolute",
               top: "1rem",
               right: "1rem",
-              background: "rgba(255,255,255,0.2)",
-              color: "white",
+              background:
+                processingStatus?.status === "processing"
+                  ? "rgba(156,163,175,0.3)"
+                  : "rgba(255,255,255,0.2)",
+              color:
+                processingStatus?.status === "processing" ? "#9ca3af" : "white",
               border: "none",
               borderRadius: "6px",
               padding: "0.5rem 1rem",
-              cursor: "pointer",
+              cursor:
+                processingStatus?.status === "processing"
+                  ? "not-allowed"
+                  : "pointer",
               fontSize: "0.85rem",
             }}
           >
-            📄 New PDF
+            New PDF
           </button>
         )}
       </div>
@@ -449,7 +402,7 @@ function App() {
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
           >
-            <div className="upload-icon">📄</div>
+            <div className="upload-icon">PDF</div>
             <div className="upload-text">
               {file
                 ? "Click to change file or drag a new one"
@@ -478,31 +431,6 @@ function App() {
                 </button>
                 <div
                   style={{
-                    margin: "1rem 0",
-                    color: "#64748b",
-                    fontSize: "0.9rem",
-                  }}
-                >
-                  or
-                </div>
-                <button
-                  onClick={showDemo}
-                  style={{
-                    background: "linear-gradient(135deg, #10b981, #059669)",
-                    color: "white",
-                    border: "none",
-                    padding: "0.75rem 1.5rem",
-                    borderRadius: "12px",
-                    fontWeight: "600",
-                    cursor: "pointer",
-                    fontSize: "0.9rem",
-                    transition: "all 0.3s ease",
-                  }}
-                >
-                  🎭 View Demo
-                </button>
-                <div
-                  style={{
                     marginTop: "1.5rem",
                     color: "#64748b",
                     fontSize: "0.85rem",
@@ -524,7 +452,7 @@ function App() {
                         marginBottom: "0.5rem",
                       }}
                     >
-                      ⚡ For Best Performance:
+                      For Best Performance:
                     </div>
                     <div
                       style={{
@@ -533,14 +461,14 @@ function App() {
                         lineHeight: "1.4",
                       }}
                     >
-                      • Upload PDFs with <strong>fewer than 50 pages</strong>
-                      <br />• File size under <strong>20MB</strong>
-                      <br />• Processing timeout: <strong>10 minutes</strong>
+                      • Upload PDFs with fewer than 50 pages
+                      <br />• File size under 20MB
+                      <br />• Processing timeout: 10 minutes
                       <br />• Text-based PDFs work better than scanned images
                     </div>
                   </div>
                   <div style={{ marginBottom: "0.5rem" }}>
-                    ✨ Try it with documents like:
+                    Try it with documents like:
                   </div>
                   <div
                     style={{
@@ -594,7 +522,7 @@ function App() {
 
           {file && (
             <div className="file-info">
-              <div className="file-name">📎 {file.name}</div>
+              <div className="file-name">File: {file.name}</div>
               <div className="file-size">{formatFileSize(file.size)}</div>
               <button
                 className="upload-btn"
@@ -644,14 +572,28 @@ function App() {
           >
             This may take 30-60 seconds for large documents...
           </div>
+          <div
+            style={{
+              marginTop: "1.5rem",
+              padding: "1rem",
+              backgroundColor: "#fef3c7",
+              borderRadius: "8px",
+              border: "1px solid #fbbf24",
+              color: "#92400e",
+              fontSize: "0.9rem",
+            }}
+          >
+            Please wait while we process your document. Chat will be available
+            once processing is complete.
+          </div>
         </div>
       )}
 
       {/* Error Message */}
-      {error && <div className="error-message">⚠️ {error}</div>}
+      {error && <div className="error-message">Error: {error}</div>}
 
       {/* Chat Container */}
-      {docId && (
+      {docId && processingStatus?.status !== "processing" && (
         <div className="chat-container">
           {/* Messages */}
           <div className="messages-container">
@@ -674,7 +616,7 @@ function App() {
 
                       {message.sources && message.sources.length > 0 && (
                         <div className="message-sources">
-                          <div className="sources-label">📖 Sources:</div>
+                          <div className="sources-label">Sources:</div>
                           <div className="sources-list">
                             {message.sources.map((source, idx) => (
                               <span
@@ -703,8 +645,7 @@ function App() {
 
                       {message.confidence !== undefined && (
                         <div className="confidence-score">
-                          🎯 Confidence: {(message.confidence * 100).toFixed(1)}
-                          %
+                          Confidence: {(message.confidence * 100).toFixed(1)}%
                         </div>
                       )}
                     </>
@@ -748,15 +689,7 @@ function App() {
                   className="send-btn"
                   disabled={loading || !currentQuestion.trim()}
                 >
-                  {loading ? (
-                    <div className="loading-dots">
-                      <div className="loading-dot"></div>
-                      <div className="loading-dot"></div>
-                      <div className="loading-dot"></div>
-                    </div>
-                  ) : (
-                    "➤"
-                  )}
+                  Send
                 </button>
               </div>
             </form>

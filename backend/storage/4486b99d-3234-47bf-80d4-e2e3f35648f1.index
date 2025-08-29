@@ -1,7 +1,0 @@
-{
-  "doc_id": "4486b99d-3234-47bf-80d4-e2e3f35648f1",
-  "total_chunks": 401,
-  "total_pages": 118,
-  "processing_method": "lightweight_tfidf",
-  "chunk_file": "storage/4486b99d-3234-47bf-80d4-e2e3f35648f1_chunks.json"
-}
